@@ -1,0 +1,70 @@
+import requests
+from queue import PriorityQueue
+
+# 駅すぱあとWebサービスのAPIキーをセットしてください
+api_key = "YOUR_API_KEY"
+
+# グループごとの駅リストと接続情報を辞書として定義
+groups = {
+    'A': ['渋谷', '三軒茶屋', '下高井戸'],
+    'B': ['中目黒', '田園調布', '目黒'],
+    'C': ['武蔵小杉', '新横浜', '菊名', '横浜'],
+    'D': ['大井町', '五反田', '蒲田'],
+    'E': ['自由が丘', '二子玉川', '溝の口'],
+    'F': ['鷺沼', '青葉台', '長津田']
+}
+
+# 駅すぱあとWebサービスのAPIエンドポイント
+api_url = "https://api.ekispert.jp/v1/json/search/course/light"
+
+def get_travel_time(from_station, to_station):
+    params = {
+        "key": api_key,
+        "from": from_station,
+        "to": to_station,
+    }
+
+    response = requests.get(api_url, params=params)
+    data = response.json()
+
+    if "ResultSet" in data and "Course" in data["ResultSet"]:
+        course = data["ResultSet"]["Course"][0]
+        travel_time = course["Route"]["time"]
+        return int(travel_time)
+    else:
+        return float("inf")  # 無限大を返す
+
+def find_shortest_path(start_station, target_group):
+    priority_queue = PriorityQueue()
+    visited = set()
+
+    priority_queue.put((0, start_station, []))
+
+    while not priority_queue.empty():
+        current_time, current_station, path = priority_queue.get()
+
+        if current_station in visited:
+            continue
+
+        visited.add(current_station)
+        path = path + [current_station]
+
+        if current_station in groups[target_group]:
+            return path
+
+        for next_station in groups[target_group]:
+            if next_station != current_station:
+                travel_time = get_travel_time(current_station, next_station)
+                priority_queue.put((current_time + travel_time, next_station, path))
+
+    return None
+
+start_station = input("出発駅を入力してください: ")
+target_group = input("目標のグループを選んでください (A, B, C, D, E, F): ")
+
+path = find_shortest_path(start_station, target_group)
+
+if path:
+    print("最短経路:", " -> ".join(path))
+else:
+    print("目標のグループに到達できませんでした。")
